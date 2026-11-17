@@ -1,0 +1,17 @@
+name: Verify Korean Crossy Cat and Shared Leaderboard
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test server, 100 questions and top-200 ranking
+        run: npm test
