@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import worker from './dist/server/index.js';
+import worker, {LEADERBOARD_RESET_AT} from './dist/server/index.js';
 const db=new DatabaseSync(':memory:');
 db.exec(readFileSync('schema.sql','utf8'));
 const env={DB:{prepare(sql){return{bind(...args){const stmt=db.prepare(sql);return{first:async()=>stmt.get(...args),all:async()=>({results:stmt.all(...args)}),run:async()=>stmt.run(...args)}} ,all:async()=>({results:db.prepare(sql).all()})}}}};
@@ -24,14 +24,17 @@ test('game assets, blocked nicknames, new game and server-side score',async()=>{
  const order=JSON.parse(db.prepare('SELECT active_order FROM runs WHERE id=?').get(started.id).active_order);
  const [wrongStatus,wrong]=await call('/api/answer',{id:started.id,choice:(order.indexOf(0)+1)%4});assert.equal(wrongStatus,200);assert.equal(wrong.correct,false);assert.equal(wrong.lives,2);
  const [finishStatus,finished]=await call('/api/finish',{id:started.id,distance:29});assert.equal(finishStatus,200);assert.equal(finished.score,400);
+ db.prepare('UPDATE runs SET started=? WHERE id=?').run(LEADERBOARD_RESET_AT - 1, started.id);
+ assert.deepEqual((await call('/api/ranking'))[1], []);
+ db.prepare('UPDATE runs SET started=? WHERE id=?').run(LEADERBOARD_RESET_AT, started.id);
  assert.equal((await call('/api/ranking'))[1][0].nickname,'국어냥이');
  assert.equal((await call('/api/ranking'))[1][0].score,400);
 });
 
 test('leaderboard returns the best 200 unique nicknames in descending score', async()=>{
  const insert=db.prepare('INSERT INTO runs(id,nickname,coat,started,deck,finished,score,max_distance) VALUES(?,?,?,?,?,1,?,?)');
- for(let i=1;i<=220;i++)insert.run('rank'+i,'국어냥이'+i,'cheese',i,'[]',i*10,i);
- insert.run('duplicate','국어냥이220','gray',99999,'[]',1,1);
+ for(let i=1;i<=220;i++)insert.run('rank'+i,'국어냥이'+i,'cheese',LEADERBOARD_RESET_AT+i,'[]',i*10,i);
+ insert.run('duplicate','국어냥이220','gray',LEADERBOARD_RESET_AT+99999,'[]',1,1);
  const [status,rows]=await call('/api/ranking');
  assert.equal(status,200); assert.equal(rows.length,200);
  assert.equal(rows[0].nickname,'국어냥이220');
