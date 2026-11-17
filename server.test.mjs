@@ -39,3 +39,65 @@ test('leaderboard returns the best 200 unique nicknames in descending score', as
  assert.equal(rows[199].score,220);
  assert.equal(rows.filter(x=>x.nickname==='국어냥이220').length,1);
 });
+
+test('timed booths award one arrival bonus, pause for quizzes, and end late approaches', async()=>{
+ const [status,{id,remainingMs}]=await call('/api/start',{nickname:'시간냥이',coat:'gray',timed:true});
+ assert.equal(status,200);
+ assert.ok(remainingMs>9000&&remainingMs<=10000);
+ const get=()=>db.prepare('SELECT * FROM runs WHERE id=?').get(id);
+ const setTravelTime=ms=>db.prepare('UPDATE runs SET started=?,segment_started=? WHERE id=?')
+  .run(Date.now()-120000,Date.now()-ms,id);
+ const answerIndex=()=>JSON.parse(get().active_order).indexOf(0);
+
+ setTravelTime(4000);
+ const [arrival,repeated]=await Promise.all([
+  call('/api/checkpoint',{id,distance:15,elapsedMs:4000}),
+  call('/api/checkpoint',{id,distance:15,elapsedMs:4000})
+ ]);
+ assert.equal(arrival[0],200);
+ assert.deepEqual(repeated,arrival);
+ assert.equal(arrival[1].bonusScore,50);
+ assert.equal(get().bonus_score,50);
+ assert.equal(get().segment_started,0);
+ assert.equal((await call('/api/advance',{id,distance:15}))[0],409);
+
+ const [,wrong]=await call('/api/answer',{id,choice:(answerIndex()+1)%4});
+ assert.equal(wrong.lives,2);
+ const [,retry]=await call('/api/checkpoint',{id,distance:15});
+ assert.equal(retry.bonusScore,50);
+ assert.equal((await call('/api/answer',{id,choice:answerIndex()}))[1].correct,true);
+ assert.equal((await call('/api/checkpoint',{id,distance:30}))[0],409);
+
+ const [,next]=await call('/api/advance',{id,distance:15});
+ assert.ok(next.remainingMs>9000&&next.remainingMs<=10000);
+ const nextStart=get().segment_started;
+ assert.equal((await call('/api/advance',{id,distance:15}))[0],200);
+ assert.equal(get().segment_started,nextStart);
+ setTravelTime(6000);
+ const [,second]=await call('/api/checkpoint',{id,distance:30,elapsedMs:6000});
+ assert.equal(second.bonusScore,50);
+ assert.equal((await call('/api/answer',{id,choice:answerIndex()}))[1].correct,true);
+
+ assert.equal((await call('/api/advance',{id,distance:30}))[0],200);
+ setTravelTime(11000);
+ const [,tooLate]=await call('/api/checkpoint',{id,distance:45,elapsedMs:9900});
+ assert.deepEqual(tooLate,{expired:true});
+ const [,finished]=await call('/api/finish',{id,distance:45});
+ assert.equal(finished.distance,44);
+ assert.equal(finished.bonusScore,50);
+ assert.equal(finished.score,690);
+ assert.deepEqual((await call('/api/finish',{id,distance:45}))[1],finished);
+});
+
+test('checkpoint migration preserves earlier finished scores',()=>{
+ const existing=new DatabaseSync(':memory:');
+ existing.exec(readFileSync('drizzle/0000_runs.sql','utf8'));
+ existing.prepare('INSERT INTO runs(id,nickname,coat,started,deck,finished,score) VALUES(?,?,?,?,?,1,?)')
+  .run('existing-record','고양이','gray',1,'[]',635);
+ existing.exec(readFileSync('drizzle/0001_checkpoint_timing.sql','utf8'));
+ const row=existing.prepare('SELECT score,segment_started,bonus_score FROM runs WHERE id=?').get('existing-record');
+ assert.equal(row.score,635);
+ assert.equal(row.segment_started,null);
+ assert.equal(row.bonus_score,0);
+ existing.close();
+});
