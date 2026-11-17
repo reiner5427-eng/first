@@ -93,6 +93,7 @@ const canvas = $('world'), ctx = canvas.getContext('2d');
 const scene = $('scene'), avatar = $('avatar');
 const TOTAL_COLS = 9, CENTER_COL = 4, CHECKPOINT_EVERY = 15;
 const TREAT_SECONDS = 10, TRAIN_SPEED = 7.5, TRAIN_GAP_SECONDS = 3;
+const TREAT_SPAWN_CHANCE = .2;
 const TRACK_LEFT = -.8, TRACK_RIGHT = 8.8;
 const LOCAL_KEY = 'korean-crossy-cat-local-rank-v1';
 const RANK_PAGE_SIZE = 50, RANK_MAX = 200;
@@ -283,9 +284,11 @@ function blockVehicle(m){
  }
 }
 function treatAt(y) {
- if (y === 2) return CENTER_COL;
+ if (!game) return null;
  const sectionStart = y - y % CHECKPOINT_EVERY;
- if (sectionStart === 0 || y < sectionStart + 3 || y > sectionStart + 13 || laneAt(y).type !== 'grass') return null;
+ if (hash(game.treatSeed + sectionStart) >= TREAT_SPAWN_CHANCE) return null;
+ if (sectionStart === 0) return y === 2 ? CENTER_COL : null;
+ if (y < sectionStart + 3 || y > sectionStart + 13 || laneAt(y).type !== 'grass') return null;
  for (let row = sectionStart + 3; row < y; row++) {
   if (laneAt(row).type === 'grass') return null;
  }
@@ -459,7 +462,7 @@ async function endGame(reason){if(phase==='ended'||!game)return;phase='ended';up
 async function startGame(){const nickname=$('nickname').value.trim(),err=nicknameError(nickname);if(err){alert(err);$('nickname').focus();return;}
  const coat=document.querySelector('input[name="coat"]:checked').value;
  game={nickname,coat,x:CENTER_COL,y:0,maxY:0,lives:3,correctCount:0,passed:new Set(),mistakes:[],question:null,
-  playTime:0,shieldUntil:0,treatsTaken:new Set()};
+  playTime:0,shieldUntil:0,treatSeed:Math.floor(Math.random()*2**32),treatsTaken:new Set()};
  serverQuestion=null;sessionId=null;worldTime=0;cameraY=0;lastMoveAt=-1000;quizDeck=shuffle([...QUESTION_BANK.keys()]);used=[];lanes.clear();
  $('start').disabled=true;
  if(online){try{const r=await request('start',{nickname,coat});sessionId=r.id;}catch(e){online=false;sessionId=null;}}
