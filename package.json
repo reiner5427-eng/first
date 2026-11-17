@@ -1,0 +1,10 @@
+{
+  "name": "korean-crossy-cat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node server-build.mjs",
+    "test": "node server-build.mjs && node --test server.test.mjs",
+    "deploy:cloudflare": "node server-build.mjs && wrangler deploy"
+  }
+}
