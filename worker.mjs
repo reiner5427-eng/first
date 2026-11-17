@@ -94,7 +94,8 @@ export default {
    return response;
   }
   const asset=ASSETS[path]||ASSETS[path==='/'?'/':'/'];if(!asset)return new Response('Not found',{status:404});
-  const [type,content]=asset;
-  return new Response(content,{headers:{'content-type':type,'cache-control':path==='/'?'no-store':'public,max-age=120'}});
+  const [type,content,base64]=asset;
+  const body=base64 ? Uint8Array.from(atob(content), char=>char.charCodeAt(0)) : content;
+  return new Response(body,{headers:{'content-type':type,'cache-control':path==='/'?'no-store':'public,max-age=120'}});
  }
 };
