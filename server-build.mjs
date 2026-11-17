@@ -1,0 +1,13 @@
+import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const html=readFileSync('index.html','utf8');
+const prefix='const QUESTION_BANK = ';
+const line=html.split('\n').find(s=>s.startsWith(prefix));
+assert.ok(line,'Question bank missing from standalone HTML');
+const questions=JSON.parse(line.slice(prefix.length).replace(/;\s*$/,''));
+assert.equal(questions.length,100,'Expected 100 questions');
+assert.equal(new Set(questions.map(q=>q.prompt)).size,100,'Question prompts must be unique');
+const assets={'/':['text/html; charset=utf-8',html]};
+mkdirSync('dist/server',{recursive:true});
+writeFileSync('dist/server/index.js',`const QUESTIONS=${JSON.stringify(questions)};\nconst ASSETS=${JSON.stringify(assets)};\n`+readFileSync('worker.mjs','utf8'));
+console.log('Cloudflare Worker build ready:',questions.length,'questions');
