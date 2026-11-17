@@ -206,7 +206,13 @@ function hasMultiplePersonalNames(nickname) {
 const badKorean = /씨발|시발|병신|븅신|좆|존나|지랄|새끼|야동|섹스|일베|일간베스트|운지|홍어충|느금|니애미|니에미|꼬치|바보|탱크|공산|정보|12월|딱|손|도박|카지노|나치|히틀러|시진핑|스탈린|노무현|자살|자해|죽고싶|마약|담배|똥|응가|방귀|지렁이|아이큐|자유시간|빼빼로|쮸쮸|못생|추하|사랑해|엄마|제발|실패|실업자|백수|싫어|미워|여친|남친|커플|소주|맥주|대마|필로폰/;
 const badEnglish = /fuck|shit|bitch|porn|sex|ilbe|ebola|nazi|hitler|suicid|cocaine|cannabis|gambl|casino|gambling|murder|kimochi|gimotti/;
 const normalize = s => s.normalize('NFKC').toLowerCase().replace(/[\p{Cf}\p{M}\s_.-]/gu,'');
-function nicknameError(entered) {
+function hasReservedNickname(name) {
+  const compact = name.normalize('NFKC').toLowerCase().replace(/[\s\p{Cf}\p{M}_-]/gu, '').normalize('NFKC');
+  return /세무냥이|리트냥이|편입냥이|충주냥이|7급냥이|한전냥이|작수냥이|엠딧냥이|관세냥이|감평냥이/u.test(compact);
+}
+
+function nicknameError(entered, { registration = true } = {}) {
+  if (registration && hasReservedNickname(entered)) return '사용할 수 없는 닉네임입니다.';
   const s = entered.normalize('NFKC').trim();
   if (!/^[가-힣A-Za-z0-9_ ]{2,12}$/.test(s) || !/[가-힣A-Za-z]/.test(s) || /\d{5,}/.test(s)) {
     return '한글 또는 영문이 포함된 2~12자 별명을 입력해 주세요.';
