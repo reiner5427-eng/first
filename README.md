@@ -11,25 +11,14 @@
 - 국어 평가 문제·답지를 토대로 문항과 선택지를 바꿔 만든 **100문항**
 - 정답 +100점, 최장 전진 1칸 +10점; 오답 시 3개의 목숨 중 하나 차감
 - **명예의 전당 상위 200위, 50명씩 4페이지**, 닉네임당 최고기록 1개만 유지
-- 게임 종료 후 오답 복습, 기존 게임의 닉네임 금지어 규칙 일부 계승
+- 게임 종료 후 오답 복습, 기존 게임의 닉네임 필터 재사용
 
-## GitHub Pages로 정적 게임 공개
+## 공개 게임과 공유 명예의 전당
 
-`index.html` 하나만으로 실행됩니다. GitHub Pages에서는 **현재 기기의 브라우저에만** 순위가 저장됩니다. GitHub Pages는 서버/DB가 없는 정적 호스팅이므로 이 단계에서 다른 학생과 공유되는 명예의 전당이라고 안내하면 안 됩니다.
+- [ChatGPT Sites에서 게임 실행](https://korean-crossy-cat.reiner5427.chatgpt.site)
+- [GitHub Pages에서 게임 실행](https://reiner5427-eng.github.io/first/)
 
-GitHub의 이 저장소에서 **Settings → Pages → Build and deployment → Source: GitHub Actions**를 최초 1회 설정하면 `.github/workflows/pages.yml`이 공개 페이지를 게시합니다.
-
-## 공용 명예의 전당까지 운영하려면
-
-이 저장소의 `worker.mjs`와 `schema.sql`은 별도 **Cloudflare Worker + 신규 D1**용 서버 코드입니다. 이것은 원래 시장경제 게임의 서버나 데이터베이스를 재사용하지 않습니다.
-
-1. Cloudflare 계정에 로그인하고 `wrangler login`을 실행합니다.
-2. `wrangler d1 create korean-crossy-cat-db`로 **새 데이터베이스를 생성**합니다.
-3. `wrangler.toml.example`을 `wrangler.toml`로 복사하고 새로운 `database_id`를 입력합니다.
-4. `wrangler d1 execute korean-crossy-cat-db --remote --file=./schema.sql`로 새 DB 스키마를 생성합니다.
-5. `npm test`로 코드를 확인한 뒤 `npm run deploy:cloudflare`를 실행합니다.
-
-Worker에서 제공되는 주소로 접속하면 정답 판정, 닉네임 필터 및 200명 공유 명예의 전당이 서버에서 작동합니다. 이 배포는 Cloudflare 계정 권한·D1 ID 없이는 수행할 수 없습니다.
+두 주소의 게임은 Sites에서 운영하는 이 게임 전용 서버와 데이터베이스를 사용합니다. 브라우저에서 서버에 연결할 수 없는 경우에는 현재 기기의 순위가 표시됩니다. GitHub Pages는 `.github/workflows/pages.yml`을 통해 `main` 변경 사항을 자동 게시합니다. 공유 순위 서버의 새 배포는 Sites에서 별도로 진행합니다.
 
 ## 개발
 

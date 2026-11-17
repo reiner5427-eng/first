@@ -1,29 +1,22 @@
 /* Cloudflare Worker + D1. Dedicated DB: never connect this to the original quiz DB. */
-const BLOCK_KO = /씨발|시발|병신|븅신|좆|존나|지랄|새끼|야동|섹스|일베|일간베스트|운지|홍어충|느금|니애미|니에미|꼬치|바보|탱크|공산|정보|12월|딱|손|도박|카지노|나치|히틀러|시진핑|스탈린|노무현|자살|자해|죽고싶|마약|담배|똥|응가|방귀|지렁이|아이큐|자유시간|빼빼로|쮸쮸|못생|추하|사랑해|엄마|제발|실패|실업자|백수|싫어|미워|여친|남친|커플|소주|맥주|대마|필로폰/;
-const BLOCK_EN = /fuck|shit|bitch|porn|sex|ilbe|ebola|nazi|hitler|suicid|cocaine|cannabis|gambl|casino|gambling|murder|kimochi|gimotti/;
 const COATS = new Set(['cheese','mackerel','white','gray','tuxedo']);
-const safeName = entered => {
- if(typeof entered!=='string')return null;
- const s=entered.normalize('NFKC').trim();const normalized=s.toLowerCase().replace(/[\p{Cf}\p{M}\s_.-]/gu,'');
- const kor=normalized.replace(/[^가-힣]/g,'');const eng=normalized.replace(/[^a-z0-9]/g,'').replace(/[013457]/g,x=>({0:'o',1:'i',3:'e',4:'a',5:'s',7:'t'}[x]));
- return /^[가-힣a-zA-Z0-9_ ]{2,12}$/.test(s) && /\p{L}/u.test(s) && !BLOCK_KO.test(kor)&&!BLOCK_EN.test(eng) ? s : null;
-};
+const PAGES_ORIGIN = 'https://reiner5427-eng.github.io';
+const safeName = entered => typeof entered === 'string' && !nicknameError(entered) ? entered.normalize('NFKC').trim() : null;
 const shuffle = xs => {for(let i=xs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[xs[i],xs[j]]=[xs[j],xs[i]];}return xs;};
-const json=(x,status=200)=>Response.json(x,{status,headers:{'cache-control':'no-store','access-control-allow-origin':'same-origin'}});
+const json=(x,status=200)=>Response.json(x,{status,headers:{'cache-control':'no-store'}});
 const fail=(error,status=400)=>json({error},status);
 function decodeDeck(game){const deck=JSON.parse(game.deck);return deck;}
 const result=(game,dist)=>({finished:true,score:dist*10+game.correct_count*100,distance:dist,correctCount:game.correct_count,lives:Math.max(0,3-game.mistakes)});
 async function endpoint(request,db,path){
  if(path==='/api/ranking' && request.method==='GET'){
   const {results}=await db.prepare(`WITH unique_runs AS (
-   SELECT nickname, coat, score, max_distance, started,
-    ROW_NUMBER() OVER (PARTITION BY nickname COLLATE NOCASE ORDER BY score DESC, started ASC) AS n
+   SELECT nickname, coat, score, max_distance, started, id,
+    ROW_NUMBER() OVER (PARTITION BY nickname COLLATE NOCASE ORDER BY score DESC, started ASC, id) AS n
    FROM runs WHERE finished=1 AND score>0
-  ) SELECT nickname,coat,score,max_distance AS distance FROM unique_runs WHERE n=1 ORDER BY score DESC,started ASC LIMIT 200`).all();
+  ) SELECT nickname,coat,score,max_distance AS distance FROM unique_runs WHERE n=1 ORDER BY score DESC,started ASC,id LIMIT 200`).all();
   return json(results.filter(row=>safeName(row.nickname)));
  }
  if(request.method!=='POST')return fail('지원하지 않는 요청입니다.',405);
- const origin=request.headers.get('origin');if(origin && origin!==new URL(request.url).origin)return fail('잘못된 요청입니다.',403);
  let body;try{const s=await request.text();if(s.length>1024)throw Error();body=JSON.parse(s);if(!body||typeof body!=='object'||Array.isArray(body))throw Error();}catch{return fail('요청을 읽을 수 없습니다.');}
  if(path==='/api/start'){
   const nickname=safeName(body.nickname);if(!nickname)return fail('사용할 수 없는 닉네임입니다.');
@@ -78,8 +71,27 @@ export default {
  async fetch(request,env){
   const url=new URL(request.url),path=url.pathname;
   if(path.startsWith('/api/')){
-   if(!env?.DB)return fail('공유 순위 서버가 연결되지 않았습니다.',503);
-   try{return await endpoint(request,env.DB,path);}catch(err){return fail('서버 오류가 발생했습니다.',500);}
+   const origin=request.headers.get('origin');
+   const fromPages=origin===PAGES_ORIGIN;
+   if(origin && origin!==url.origin && !fromPages)return fail('잘못된 요청입니다.',403);
+   if(request.method==='OPTIONS'){
+    if(!fromPages)return new Response(null,{status:405});
+    return new Response(null,{status:204,headers:{
+     'access-control-allow-origin':PAGES_ORIGIN,
+     'access-control-allow-methods':'GET, POST',
+     'access-control-allow-headers':'content-type',
+     'vary':'Origin'
+    }});
+   }
+   let response;
+   try{
+    response=env?.DB ? await endpoint(request,env.DB,path) : fail('공유 순위 서버가 연결되지 않았습니다.',503);
+   }catch{
+    response=fail('서버 오류가 발생했습니다.',500);
+   }
+   response.headers.set('vary','Origin');
+   if(fromPages)response.headers.set('access-control-allow-origin',PAGES_ORIGIN);
+   return response;
   }
   const asset=ASSETS[path]||ASSETS[path==='/'?'/':'/'];if(!asset)return new Response('Not found',{status:404});
   const [type,content]=asset;
