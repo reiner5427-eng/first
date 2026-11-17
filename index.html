@@ -92,7 +92,8 @@ const $ = id => document.getElementById(id);
 const canvas = $('world'), ctx = canvas.getContext('2d');
 const scene = $('scene'), avatar = $('avatar');
 const TOTAL_COLS = 9, CENTER_COL = 4, CHECKPOINT_EVERY = 15;
-const TREAT_SECONDS = 10, TRAIN_SPEED = 7.5;
+const TREAT_SECONDS = 10, TRAIN_SPEED = 7.5, TRAIN_GAP_SECONDS = 3;
+const TRACK_LEFT = -.8, TRACK_RIGHT = 8.8;
 const LOCAL_KEY = 'korean-crossy-cat-local-rank-v1';
 const RANK_PAGE_SIZE = 50, RANK_MAX = 200;
 let rankRows = [], rankPage = 1;
@@ -215,18 +216,26 @@ function laneAt(y){
  lanes.set(y,lane);return lane;
 }
 function movers(lane){
- if(!['road','river','rail'].includes(lane.type))return [];
- let spaces=lane.type==='rail'?21:lane.type==='river'?4.5:4.7+lane.seed*2.8;
  const speed=lane.dir*lane.speed;
- const length=lane.type==='rail'?8.1:lane.type==='river'?2.7+lane.seed*0.8:1.2+lane.seed*0.8;
+ if(lane.type==='rail'){
+  const length=8.1;
+  const left=TRACK_LEFT-length/2, right=TRACK_RIGHT+length/2;
+  const crossingSeconds=(right-left)/lane.speed;
+  const cycle=crossingSeconds+TRAIN_GAP_SECONDS;
+  const elapsed=((game?.playTime??0)+lane.seed*cycle)%cycle;
+  if(elapsed>=crossingSeconds)return [];
+  const entrance=lane.dir===1?left:right;
+  return [{x:entrance+elapsed*speed,len:length,speed,kind:'rail'}];
+ }
+ if(lane.type!=='road'&&lane.type!=='river')return [];
+ const spaces=lane.type==='river'?4.5:4.7+lane.seed*2.8;
+ const length=lane.type==='river'?2.7+lane.seed*0.8:1.2+lane.seed*0.8;
  const phaseT=worldTime*speed;
  const out=[];
  for(let k=-4;k<=7;k++){
-  let x=((k*spaces+phaseT+lane.seed*spaces+100000)% (spaces*12));
   // Stable periodic objects: base coordinate is absolute and repeated within the visible span.
   const raw=k*spaces+phaseT+lane.seed*spaces;
-  const wrap=((raw+18)%(spaces*12)+(spaces*12))%(spaces*12)-9;
-  x=wrap;
+  const x=((raw+18)%(spaces*12)+(spaces*12))%(spaces*12)-9;
   if(x>-5 && x<14)out.push({x,len:length,speed,kind:lane.type,color:['#ed9367','#6299da','#eac45f','#b18ad3'][Math.abs(Math.round(lane.y+3*k))%4]});
  }
  return out;
@@ -245,7 +254,7 @@ function drawLane(lane){
   for(let x=0;x<9;x+=2){const [sx,sy]=project(x+.22,y+.17);ctx.fillStyle='#a7dbea';ctx.beginPath();ctx.ellipse(sx,sy,11,2,0,0,Math.PI*2);ctx.fill();}
  }else if(lane.type==='rail'){
   for(let x=-.5;x<9;x+=.85)drawPoly(quad(x,x+.19,y-.38,y+.38),'#c5a880');
-  drawPoly(quad(-.8,8.8,y-.24,y-.15),'#343943');drawPoly(quad(-.8,8.8,y+.15,y+.24),'#343943');
+  drawPoly(quad(TRACK_LEFT,TRACK_RIGHT,y-.24,y-.15),'#343943');drawPoly(quad(TRACK_LEFT,TRACK_RIGHT,y+.15,y+.24),'#343943');
  }else{
   for(let i=0;i<8;i++)if(hash(y*91+i*47)>.69){const [sx,sy]=project(i+.18,y+hash(y+i)*.45-.2);ctx.fillStyle=['#6eae61','#5ea958','#d6e993'][i%3];ctx.beginPath();ctx.arc(sx,sy,2.2+hash(i+y)*2.2,0,Math.PI*2);ctx.fill();}
   if(lane.type==='checkpoint'){
@@ -543,6 +552,6 @@ resize();requestAnimationFrame(tick);
 </div><label class="field-label">고양이 선택</label><div id="coats" class="coats"><label><input type="radio" name="coat" value="cheese" checked><span>🧡 치즈냥이</span></label><label><input type="radio" name="coat" value="mackerel"><span>🐟 고등어냥이</span></label><label><input type="radio" name="coat" value="white"><span>🤍 흰둥이냥이</span></label><label><input type="radio" name="coat" value="gray"><span>🩶 회색냥이</span></label><label><input type="radio" name="coat" value="tuxedo"><span>🖤 턱시도냥이</span></label></div><label for="nickname" class="field-label">닉네임 (2~12자)</label><input type="text" id="nickname" placeholder="예: 책읽는냥이" maxlength="12" autocomplete="off"><button class="btn primary" id="start">게임 시작하기 →</button><p class="fineprint" id="mode-note">연결 상태를 확인하고 있어요…</p></div></div>
 <div id="quiz-overlay" class="overlay" hidden><div class="modal quiz"><span class="eyebrow">📚 국어 체크포인트 <strong id="checkpoint-no">1</strong></span><h2 id="question-title">문제</h2><div class="topic" id="topic">언어와 소통</div><div id="choices" class="choices"></div><div id="explanation" class="explanation" hidden></div><button class="btn primary" id="quiz-next" hidden>다음 길로! →</button></div></div>
 <div id="end-overlay" class="overlay" hidden><div class="modal result"><span class="eyebrow">🏁 이번 도전 결과</span><h2 id="end-title">다음에는 더 멀리!</h2><div id="end-summary"></div><div id="review"></div><button class="btn primary" id="retry">다시 도전 ↻</button></div></div>
-</section><aside class="side"><section class="card instructions"><div class="eyebrow">🎮 놀이 방법</div><h2>달리고, 멈추고, 생각해요!</h2><div class="instruction"><span>🚗</span><p>자동차·기차에 닿거나 강에 빠지면 게임 종료!</p></div><div class="instruction"><span>📖</span><p>15칸마다 안전한 퀴즈 지점에서 객관식 문제 풀기</p></div><div class="instruction"><span>💗</span><p>문제를 틀리면 하트 한 개 차감, 맞히면 +100점</p></div><div class="instruction"><span>🏆</span><p>한 칸 최장 전진 +10점, 점수로 순위 경쟁</p></div><div class="instruction"><span>✨</span><p>길 위의 츄르를 먹으면 10초 동안 무적! 체크포인트에서는 퀴즈를 풀어요.</p></div><p class="control-help">PC: 방향키·WASD　|　모바일: 화면 버튼·스와이프</p></section>
+</section><aside class="side"><section class="card instructions"><div class="eyebrow">🎮 놀이 방법</div><h2>달리고, 멈추고, 생각해요!</h2><div class="instruction"><span>🚗</span><p>자동차·기차에 닿거나 강에 빠지면 게임 종료! 기차가 지나간 뒤 3초 동안 길이 비어요.</p></div><div class="instruction"><span>📖</span><p>15칸마다 안전한 퀴즈 지점에서 객관식 문제 풀기</p></div><div class="instruction"><span>💗</span><p>문제를 틀리면 하트 한 개 차감, 맞히면 +100점</p></div><div class="instruction"><span>🏆</span><p>한 칸 최장 전진 +10점, 점수로 순위 경쟁</p></div><div class="instruction"><span>✨</span><p>길 위의 츄르를 먹으면 10초 동안 무적! 체크포인트에서는 퀴즈를 풀어요.</p></div><p class="control-help">PC: 방향키·WASD　|　모바일: 화면 버튼·스와이프</p></section>
 <section class="card leaderboard"><div class="board-head"><div><div class="eyebrow">🏅 명예의 전당</div><h2>고양이 최고 기록</h2></div><button id="refresh" class="icon-btn" aria-label="순위 새로고침">↻</button></div><p class="fineprint" id="ranking-mode">같은 닉네임은 최고 기록만 표시됩니다.</p><nav class="rank-pages" id="rank-pages" aria-label="명예의 전당 페이지"><button type="button" data-rank-page="1" aria-current="page">1페이지 · 1~50위</button><button type="button" data-rank-page="2">2페이지 · 51~100위</button><button type="button" data-rank-page="3">3페이지 · 101~150위</button><button type="button" data-rank-page="4">4페이지 · 151~200위</button></nav><p class="fineprint" id="ranking-count" role="status">최고 기록을 불러오고 있어요.</p><div class="board-wrap"><table><thead><tr><th>순위</th><th>닉네임</th><th>점수</th></tr></thead><tbody id="board-body"><tr><td colspan="3">기록을 불러오는 중…</td></tr></tbody></table></div><p class="fineprint">상위 200위 · 50명씩 4페이지 · 본 게임의 기록만 표시</p></section></aside></div>
 <footer>6학년 국어 5단원 '언어와 소통' · 첨부한 단원평가·답지를 바탕으로 재구성한 변형 100문항</footer></main></body></html>
