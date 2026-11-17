@@ -1,0 +1,8 @@
+name = "korean-crossy-cat"
+main = "dist/server/index.js"
+compatibility_date = "2026-11-17"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "korean-crossy-cat-db"
+database_id = "REPLACE_WITH_A_NEW_D1_DATABASE_ID"
