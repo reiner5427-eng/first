@@ -43,7 +43,7 @@ test('leaderboard returns the best 200 unique nicknames in descending score', as
 test('timed booths award one arrival bonus, pause for quizzes, and end late approaches', async()=>{
  const [status,{id,remainingMs}]=await call('/api/start',{nickname:'시간냥이',coat:'gray',timed:true});
  assert.equal(status,200);
- assert.ok(remainingMs>9000&&remainingMs<=10000);
+ assert.ok(remainingMs>14000&&remainingMs<=15000);
  const get=()=>db.prepare('SELECT * FROM runs WHERE id=?').get(id);
  const setTravelTime=ms=>db.prepare('UPDATE runs SET started=?,segment_started=? WHERE id=?')
   .run(Date.now()-120000,Date.now()-ms,id);
@@ -69,18 +69,18 @@ test('timed booths award one arrival bonus, pause for quizzes, and end late appr
  assert.equal((await call('/api/checkpoint',{id,distance:30}))[0],409);
 
  const [,next]=await call('/api/advance',{id,distance:15});
- assert.ok(next.remainingMs>9000&&next.remainingMs<=10000);
+ assert.ok(next.remainingMs>14000&&next.remainingMs<=15000);
  const nextStart=get().segment_started;
  assert.equal((await call('/api/advance',{id,distance:15}))[0],200);
  assert.equal(get().segment_started,nextStart);
- setTravelTime(6000);
- const [,second]=await call('/api/checkpoint',{id,distance:30,elapsedMs:6000});
+ setTravelTime(12000);
+ const [,second]=await call('/api/checkpoint',{id,distance:30,elapsedMs:12000});
  assert.equal(second.bonusScore,50);
  assert.equal((await call('/api/answer',{id,choice:answerIndex()}))[1].correct,true);
 
  assert.equal((await call('/api/advance',{id,distance:30}))[0],200);
- setTravelTime(11000);
- const [,tooLate]=await call('/api/checkpoint',{id,distance:45,elapsedMs:9900});
+ setTravelTime(16000);
+ const [,tooLate]=await call('/api/checkpoint',{id,distance:45,elapsedMs:14900});
  assert.deepEqual(tooLate,{expired:true});
  const [,finished]=await call('/api/finish',{id,distance:45});
  assert.equal(finished.distance,44);

@@ -1,6 +1,6 @@
 import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
 import assert from 'node:assert/strict';
-const html=readFileSync('index.html','utf8');
+const html=readFileSync('index.html','utf8').replace(/\r\n/g,'\n');
 const prefix='const QUESTION_BANK = ';
 const line=html.split('\n').find(s=>s.startsWith(prefix));
 assert.ok(line,'Question bank missing from standalone HTML');
