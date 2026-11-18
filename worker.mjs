@@ -3,6 +3,10 @@ const COATS = new Set(['cheese','mackerel','white','gray','tuxedo']);
 const PAGES_ORIGIN = 'https://reiner5427-eng.github.io';
 const {limitMs, bonusMs, bonusPoints} = CHECKPOINT_RULES;
 const ARRIVAL_TRANSIT_MS = 350;
+const REMOVED_NICKNAME_TERMS = ["야","기분","좋"];
+// Stored nicknames are NFKC-normalized and can contain ASCII spaces and underscores.
+const compactStoredNickname = "replace(replace(nickname, ' ', ''), '_', '')";
+const removedNicknamePredicate = REMOVED_NICKNAME_TERMS.map(() => `instr(${compactStoredNickname}, ?) > 0`).join(' OR ');
 export const LEADERBOARD_RESET_AT = 1794891518000;
 const safeName = (entered, options) => typeof entered === 'string' && !nicknameError(entered, options) ? entered.normalize('NFKC').trim() : null;
 const shuffle = xs => {for(let i=xs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[xs[i],xs[j]]=[xs[j],xs[i]];}return xs;};
@@ -23,8 +27,8 @@ async function endpoint(request,db,path){
   const {results}=await db.prepare(`WITH unique_runs AS (
    SELECT nickname, coat, score, max_distance, started, id,
     ROW_NUMBER() OVER (PARTITION BY nickname COLLATE NOCASE ORDER BY score DESC, started ASC, id) AS n
-   FROM runs WHERE finished=1 AND score>0 AND started>=?
-  ) SELECT nickname,coat,score,max_distance AS distance FROM unique_runs WHERE n=1 ORDER BY score DESC,started ASC,id LIMIT 200`).bind(LEADERBOARD_RESET_AT).all();
+   FROM runs WHERE finished=1 AND score>0 AND started>=? AND NOT (${removedNicknamePredicate})
+  ) SELECT nickname,coat,score,max_distance AS distance FROM unique_runs WHERE n=1 ORDER BY score DESC,started ASC,id LIMIT 200`).bind(LEADERBOARD_RESET_AT, ...REMOVED_NICKNAME_TERMS).all();
   return json(results.filter(row=>safeName(row.nickname, { registration: false })));
  }
  if(request.method!=='POST')return fail('지원하지 않는 요청입니다.',405);
