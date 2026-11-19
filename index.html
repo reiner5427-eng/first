@@ -439,14 +439,19 @@ function matchesRemovedNickname(name) {
   return typeof name === 'string' && /노안|예일리언|에일리언|야르|왜|잼민|응우엔|응우옌|응우|장애|게이|사랑해|죽|니거|니그로|돼지|섹시|울트라|씹|몸무게|바부|야|기분|좋|돼|당뇨|역류|불|주먹|스마트|안경|도둑|빡/u.test(name.normalize('NFKC').toLowerCase().replace(/[\s\p{Cf}\p{M}_-]/gu, '').normalize('NFKC'));
 }
 const localRows=()=>{
-  try {
-    const rows=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]');
-    if (!Array.isArray(rows)) return [];
-    const retained=rows.filter(row=>!matchesRemovedNickname(row?.nickname));
-    if (retained.length!==rows.length) localStorage.setItem(LOCAL_KEY,JSON.stringify(retained));
-    return retained;
-  } catch { return []; }
+ let current=[];
+ for(const key of ['korean-crossy-cat-local-rank-v1',LOCAL_KEY]){
+  try{
+   const rows=JSON.parse(localStorage.getItem(key)||'[]');
+   if(!Array.isArray(rows))continue;
+   const retained=rows.filter(row=>!matchesRemovedNickname(row?.nickname));
+   if(key===LOCAL_KEY)current=retained;
+   if(retained.length!==rows.length)localStorage.setItem(key,JSON.stringify(retained));
+  }catch{}
+ }
+ return current;
 };
+localRows();
 function saveLocal(){try{
  const score=gameScore();
  const rows=localRows();rows.push({nickname:game.nickname,coat:game.coat,score,distance:game.maxY,at:Date.now()});
