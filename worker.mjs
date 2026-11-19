@@ -27,7 +27,7 @@ async function endpoint(request,db,path){
   const {results}=await db.prepare(`WITH unique_runs AS (
    SELECT nickname, coat, score, max_distance, started, id,
     ROW_NUMBER() OVER (PARTITION BY nickname COLLATE NOCASE ORDER BY score DESC, started ASC, id) AS n
-   FROM runs WHERE finished=1 AND score>0 AND started>=? AND NOT (${removedNicknamePredicate})
+   FROM runs WHERE finished=1 AND score>0 AND started>=? AND nickname NOT GLOB '*[A-Za-z]*' AND NOT (${removedNicknamePredicate})
   ) SELECT nickname,coat,score,max_distance AS distance FROM unique_runs WHERE n=1 ORDER BY score DESC,started ASC,id LIMIT 200`).bind(LEADERBOARD_RESET_AT, ...REMOVED_NICKNAME_TERMS).all();
   return json(results.filter(row=>safeName(row.nickname, { registration: false })));
  }
