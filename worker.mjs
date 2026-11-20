@@ -3,7 +3,7 @@ const COATS = new Set(['cheese','mackerel','white','gray','tuxedo']);
 const PAGES_ORIGIN = 'https://reiner5427-eng.github.io';
 const {limitMs, bonusMs, bonusPoints} = CHECKPOINT_RULES;
 const ARRIVAL_TRANSIT_MS = 350;
-const REMOVED_NICKNAME_TERMS = ["야","기분","좋","돼","당뇨","역류","불","주먹","스마트","안경","도둑","빡"];
+const REMOVED_NICKNAME_TERMS = ["야","기분","좋","돼","당뇨","역류","불","주먹","스마트","안경","도둑","빡","김대중","엄","줴"];
 // Stored nicknames are NFKC-normalized and can contain ASCII spaces and underscores.
 const compactStoredNickname = "replace(replace(nickname, ' ', ''), '_', '')";
 const removedNicknamePredicate = REMOVED_NICKNAME_TERMS.map(() => `instr(${compactStoredNickname}, ?) > 0`).join(' OR ');
